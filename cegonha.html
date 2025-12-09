@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Cegonha Interativa</title>
+
+<!-- Biblioteca para ler .xlsx -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- Biblioteca para exportar como PNG -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<!-- Supabase JS v2 (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+    :root{
+        --accent:#2563eb;
+        --accent-soft:#dbeafe;
+        --bg:#0f172a;
+        --bg-soft:#020617;
+        --card:#020617;
+        --card-elevated:#020617;
+        --border:#1e293b;
+        --text:#e5e7eb;
+        --text-soft:#9ca3af;
+        --danger:#ef4444;
+    }
+
+    *{
+        box-sizing:border-box;
+    }
+
+    body{
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top, #1e293b 0, #020617 55%);
+        padding: 0;
+        margin:0;
+        color:var(--text);
+    }
+
+    /* HEADER + HAMBURGUER */
+    .app-header{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        padding:10px 14px;
+        background:rgba(15,23,42,0.95);
+        border-bottom:1px solid var(--border);
+        position:sticky;
+        top:0;
+        z-index:900;
+        backdrop-filter:blur(10px);
+    }
+
+    .app-title{
+        font-size:15px;
+        font-weight:600;
+        letter-spacing:0.02em;
+    }
+
+    .hamburger{
+        width:38px;
+        height:34px;
+        border-radius:999px;
+        border:1px solid var(--border);
+        background:rgba(15,23,42,0.9);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        flex-direction:column;
+        gap:4px;
+        cursor:pointer;
+        padding:0;
+    }
+
+    .hamburger span{
+        width:18px;
+        height:2px;
+        border-radius:999px;
+        background:#e5e7eb;
+        transition:transform .2s ease, opacity .2s ease;
+    }
+
+    .hamburger.active span:nth-child(1){
+        transform:translateY(6px) rotate(45deg);
+    }
+    .hamburger.active span:nth-child(2){
+        opacity:0;
+    }
+    .hamburger.active span:nth-child(3){
+        transform:translateY(-6px) rotate(-45deg);
+    }
+
+    /* SIDE MENU */
+    #menuBackdrop{
+        position:fixed;
+        inset:0;
+        background:rgba(15,23,42,0.6);
+        display:none;
+        z-index:850;
+    }
+
+    .side-menu{
+        position:fixed;
+        top:0;
+        left:0;
+        height:100%;
+        width:260px;
+        max-width:80%;
+        background:#020617;
+        border-right:1px solid var(--border);
+        box-shadow:4px 0 18px rgba(0,0,0,0.6);
+        transform:translateX(-100%);
+        transition:transform .22s ease-out;
+        z-index:900;
+        padding:14px 14px 18px;
+        display:flex;
+        flex-direction:column;
+        gap:12px;
+    }
+
+    .side-menu.open{
+        transform:translateX(0);
+    }
+
+    .menu-section-title{
+        font-size:11px;
+        text-transform:uppercase;
+        letter-spacing:0.12em;
+        color:var(--text-soft);
+        margin-bottom:4px;
+    }
+
+    .menu-group{
+        border-radius:10px;
+        border:1px solid var(--border);
+        padding:10px;
+        background:rgba(15,23,42,0.9);
+    }
+
+    .menu-group label{
+        font-size:13px;
+        display:block;
+        margin-bottom:4px;
+    }
+
+    input[type="file"]{
+        width:100%;
+        font-size:12px;
+        color:var(--text-soft);
+    }
+
+    .menu-hint{
+        font-size:11px;
+        color:var(--text-soft);
+        margin-top:6px;
+    }
+
+    .menu-buttons{
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+        margin-top:4px;
+    }
+
+    .menu-btn{
+        padding:7px 10px;
+        border-radius:8px;
+        border:1px solid var(--border);
+        background:#0b1120;
+        color:var(--text);
+        cursor:pointer;
+        font-size:13px;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+    }
+
+    .menu-btn.primary{
+        background:var(--accent);
+        border-color:var(--accent);
+    }
+
+    .menu-btn.danger{
+        background:rgba(248,113,113,0.1);
+        border-color:var(--danger);
+        color:#fecaca;
+    }
+
+    .pill{
+        font-size:10px;
+        padding:2px 6px;
+        border-radius:999px;
+        background:rgba(15,23,42,0.9);
+        border:1px solid var(--border);
+    }
+
+    .pill-dot{
+        width:6px;
+        height:6px;
+        border-radius:999px;
+        background:#22c55e;
+        display:inline-block;
+        margin-right:4px;
+    }
+
+    /* ROTATE HINT */
+    #rotateHint{
+        position:fixed;
+        bottom:12px;
+        left:50%;
+        transform:translateX(-50%);
+        background:rgba(15,23,42,0.96);
+        border-radius:999px;
+        border:1px solid var(--border);
+        padding:6px 12px;
+        display:none;
+        align-items:center;
+        gap:8px;
+        font-size:12px;
+        z-index:700;
+        box-shadow:0 8px 20px rgba(0,0,0,0.6);
+    }
+
+    #rotateHint span.icon{
+        font-size:14px;
+    }
+
+    #rotateHint button{
+        border:none;
+        background:transparent;
+        color:var(--text-soft);
+        font-size:11px;
+        cursor:pointer;
+    }
+
+    /* MAIN LAYOUT */
+    .app-main{
+        max-width:1100px;
+        margin:10px auto 30px;
+        padding:0 10px 20px;
+    }
+
+    #cegonhaWrapper{
+        background:radial-gradient(circle at top, #111827 0, #020617 60%);
+        border-radius:16px;
+        padding:12px;
+        border:1px solid rgba(148,163,184,0.35);
+        box-shadow:0 18px 40px rgba(0,0,0,0.8);
+        position:relative;
+    }
+
+    #cegonhaContainer{
+        position: relative;
+        width: 100%;
+        max-width: 980px;
+        margin: auto;
+        touch-action:none;
+        border-radius:12px;
+        overflow:hidden;
+        background:#020617;
+    }
+
+    #cegonhaImg{
+        width: 100%;
+        user-select: none;
+        display:block;
+        opacity:0.92;
+    }
+
+    .vagaBtn{
+        position: absolute;
+        min-width:clamp(48px, 14vw, 80px);
+        min-height:clamp(22px, 6vw, 32px);
+        padding:2px 6px;
+        background: rgba(15,23,42,0.9);
+        color: #e5e7eb;
+        border: 1px solid rgba(148,163,184,0.9);
+        cursor: pointer;
+        font-size:clamp(10px, 2.6vw, 13px);
+        border-radius:999px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        line-height:1.1;
+        padding-inline:8px;
+        box-shadow:0 4px 12px rgba(0,0,0,0.7);
+        backdrop-filter:blur(4px);
+        transition:transform .08s ease, box-shadow .08s ease, background .12s ease;
+    }
+
+    .vagaBtn:active{
+        transform:scale(0.95);
+        box-shadow:0 2px 6px rgba(0,0,0,0.7);
+    }
+
+    .vagaBtn.edit-mode{
+        outline:2px dashed #facc15;
+        outline-offset:1px;
+    }
+
+    .vagaBtn.selecionada{
+        box-shadow:0 0 0 2px rgba(56,189,248,0.9);
+    }
+
+    .vagaBtn.preenchida{
+        background:rgba(22,163,74,0.92);
+        border-color:#4ade80;
+        color:#ecfdf5;
+    }
+
+    .vagaBtn-label{
+        max-width:100%;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+
+    /* TABELA */
+    #tabelaBox{
+        margin-top:18px;
+        background:rgba(15,23,42,0.9);
+        padding:12px;
+        border-radius:14px;
+        border:1px solid var(--border);
+        box-shadow:0 12px 30px rgba(0,0,0,0.85);
+        overflow-x:auto;
+    }
+
+    #tabelaBox h3{
+        margin-top:0;
+        margin-bottom:8px;
+        font-size:14px;
+    }
+
+    table{
+        margin: 0 auto;
+        border-collapse: collapse;
+        width: 100%;
+        min-width:320px;
+        background: #020617;
+        font-size:13px;
+        color:var(--text);
+    }
+
+    th, td{
+        border: 1px solid #1f2937;
+        padding: 6px;
+    }
+
+    th{
+        background:#0f172a;
+        color:#e5e7eb;
+        font-weight:500;
+    }
+
+    tbody tr:nth-child(even){
+        background:#020617;
+    }
+
+    tbody tr:nth-child(odd){
+        background:#020617;
+    }
+
+    /* MODAIS GENÉRICOS */
+    .modal-backdrop{
+        position:fixed;
+        inset:0;
+        background:rgba(15,23,42,0.7);
+        display:none;
+        align-items:center;
+        justify-content:center;
+        padding:16px;
+        z-index:1000;
+        backdrop-filter:blur(6px);
+    }
+
+    .modal{
+        background:#020617;
+        border-radius:14px;
+        padding:14px 14px 12px;
+        max-width:360px;
+        width:100%;
+        border:1px solid var(--border);
+        box-shadow:0 18px 40px rgba(0,0,0,0.9);
+    }
+
+    .modal h3{
+        margin-top:0;
+        margin-bottom:6px;
+        font-size:15px;
+    }
+
+    .modal p{
+        margin:4px 0;
+        font-size:13px;
+        color:var(--text-soft);
+    }
+
+    #selectVeiculo{
+        width:100%;
+        margin:8px 0 10px;
+        padding:7px;
+        font-size:13px;
+        border-radius:8px;
+        border:1px solid var(--border);
+        background:#020617;
+        color:var(--text);
+    }
+
+    .modal-actions{
+        display:flex;
+        justify-content:flex-end;
+        gap:8px;
+        margin-top:8px;
+    }
+
+    .small-btn{
+        padding:6px 12px;
+        border-radius:8px;
+        border:1px solid var(--border);
+        background:#020617;
+        cursor:pointer;
+        font-size:13px;
+        color:var(--text);
+    }
+
+    .small-btn.primary{
+        background:var(--accent);
+        border-color:var(--accent);
+        color:#fff;
+    }
+
+    .small-btn.danger{
+        border-color:var(--danger);
+        color:#fecaca;
+        background:rgba(248,113,113,0.1);
+    }
+
+    /* MODAL DETALHES */
+    .detail-row{
+        display:flex;
+        justify-content:space-between;
+        font-size:13px;
+        margin-top:4px;
+    }
+
+    .detail-label{
+        color:var(--text-soft);
+    }
+
+    .detail-value{
+        font-weight:500;
+    }
+
+    @media (max-width:600px){
+        .app-title{
+            font-size:14px;
+        }
+        #tabelaBox{
+            margin-top:14px;
+        }
+    }
+    /* Mostrar senha */
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-wrapper input {
+    width: 100%;
+    padding-right: 42px !important;
+}
+
+.toggle-pass {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    color: #cbd5e1;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0;
+}
+
+.remember {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    margin-top: 6px;
+    margin-bottom: 14px;
+
+    width: fit-content;
+
+    font-size: 14px;
+    color: #dda077;
+
+    cursor: pointer;
+    user-select: none;
+
+    white-space: nowrap;   /* 👈 IMPEDIR QUEBRA DE LINHA */
+}
+
+.remember input {
+    width: 16px;
+    height: 16px;
+    accent-color: #ff8800;
+}
+
+
+
+
+
+
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+    <div class="login-wrapper">
+        <div class="login-card">
+            <h2>Entrar</h2>
+
+            <p class="login-subtitle">Acesse o sistema de montagem da cegonha</p>
+
+            <div class="login-field">
+                <label>E-mail</label>
+                <input id="loginEmail" type="email" placeholder="seuemail@exemplo.com">
+            </div>
+
+            <div class="login-field">
+                <label>Senha</label>
+                <div class="password-wrapper">
+                    <input id="loginPassword" type="password" placeholder="•••••••">
+                    <button type="button" id="togglePassword" class="toggle-pass">👁️</button>
+                </div>
+            </div>
+
+            <label class="remember">
+                <input type="checkbox" id="rememberMe">
+                <span>Lembrar de mim</span>
+            </label>
+
+
+            <button id="loginBtn" class="login-btn">
+                <span id="loginBtnText">Entrar</span>
+                <span id="loginLoader" class="loader" style="display:none;"></span>
+            </button>
+
+            <p id="loginError"></p>
+        </div>
+    </div>
+</div>
+
+
+<style>
+/* ----- LOGIN SCREEN ----- */
+
+#loginScreen {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at top, #0b1222 0%, #020617 80%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+
+    backdrop-filter: blur(8px);
+}
+
+.login-wrapper {
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+}
+
+.login-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    border-radius: 16px;
+    padding: 28px 26px;
+    backdrop-filter: blur(12px);
+    color: #e2e8f0;
+
+    animation: fadeInUp 0.45s ease;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.login-card h2 {
+    margin-top: 0;
+    margin-bottom: 6px;
+    font-size: 26px;
+    font-weight: 600;
+}
+
+.login-subtitle {
+    margin-top: -2px;
+    margin-bottom: 22px;
+    font-size: 13px;
+    color: #94a3b8;
+}
+
+.login-field {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 16px;
+}
+
+.login-field label {
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #cbd5e1;
+}
+
+.login-card input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #1e293b;
+    background: rgba(15, 23, 42, 0.65);
+    color: #f1f5f9;
+    font-size: 15px;
+    transition: border 0.2s ease;
+}
+
+.login-card input:focus {
+    border-color: #3b82f6;
+    outline: none;
+}
+
+.login-btn {
+    width: 100%;
+    margin-top: 6px;
+    padding: 12px 14px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    transition: opacity .2s ease, transform .2s ease;
+}
+
+.login-btn:hover {
+    opacity: 0.92;
+}
+
+.login-btn:active {
+    transform: scale(0.97);
+}
+
+#loginError {
+    margin-top: 12px;
+    font-size: 14px;
+    color: #ef4444;
+    text-align: center;
+}
+
+/* Botão mostrar senha */
+.password-wrapper {
+    position: relative;
+}
+
+.password-wrapper input {
+    padding-right: 40px;
+}
+
+.toggle-pass {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+
+
+/* Loader (animação entrar) */
+.loader {
+    width: 18px;
+    height: 18px;
+    border: 3px solid #ffffff50;
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: inline-block;
+    margin-left: 8px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+
+</style>
+
+
+
+<header class="app-header">
+    <button id="menuToggle" class="hamburger" aria-label="Abrir menu">
+        <span></span><span></span><span></span>
+    </button>
+    <div class="app-title">Carregamento de Veículos – Cegonha</div>
+</header>
+
+<div id="menuBackdrop"></div>
+
+<!-- MENU LATERAL -->
+<nav id="sideMenu" class="side-menu">
+    <div class="menu-group">
+        <div class="menu-section-title">Dados</div>
+        <label for="fileInput"><b>Importar planilha (.xlsx)</b></label>
+        <input type="file" id="fileInput" accept=".xlsx">
+        <p class="menu-hint">
+            Deve conter colunas (nome pode variar): <b>PLACA</b>, <b>MODELO</b>, <b>DESTINO</b>.
+        </p>
+        <div class="menu-buttons">
+            <button id="btnCarregarSupabase" class="menu-btn">
+                Carregar do Supabase
+                <span class="pill"><span class="pill-dot"></span>online</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="menu-group">
+        <div class="menu-section-title">Vagas</div>
+        <div class="menu-buttons">
+            <button id="toggleEdit" class="menu-btn">
+                Modo edição: <span id="editStateLabel">desligado</span>
+            </button>
+            <button id="addVaga" class="menu-btn">
+                Adicionar vaga <span>+</span>
+            </button>
+            <button id="removeVaga" class="menu-btn danger">
+                Remover vaga selecionada
+            </button>
+            <button id="resetSystem" class="menu-btn danger">
+                Resetar sistema 🔄
+</button>
+<button id="logoutBtn" class="menu-btn danger">Sair</button>
+
+
+        </div>
+    </div>
+
+    <div class="menu-group">
+        <div class="menu-section-title">Exportação</div>
+        <div class="menu-buttons">
+            <button id="exportBtnMenu" class="menu-btn primary">
+                Exportar montagem (PNG)
+            </button>
+        </div>
+        <p class="menu-hint">
+            Dica: para melhor visualização, gire o celular para horizontal antes de montar a cegonha.
+        </p>
+    </div>
+</nav>
+
+<!-- AVISO PARA GIRAR O CELULAR -->
+<div id="rotateHint">
+    <span class="icon">📱↔️</span>
+    <span>Para ver melhor a cegonha, gire o celular para horizontal.</span>
+    <button id="closeRotateHint">OK</button>
+</div>
+
+<main class="app-main">
+    <div id="cegonhaWrapper">
+        <!-- DESENHO -->
+        <div id="cegonhaContainer">
+            <img id="cegonhaImg" src="A_black_and_white_vector_illustration_in_solid_bla.jpeg" alt="Cegonha">
+
+            <!-- BOTÕES – 5 em cima -->
+            <button class="vagaBtn" style="top: 15%; left: 22%;" data-vaga="1">
+                <span class="vagaBtn-label">Vaga 1</span>
+            </button>
+            <button class="vagaBtn" style="top: 15%; left: 34%;" data-vaga="2">
+                <span class="vagaBtn-label">Vaga 2</span>
+            </button>
+            <button class="vagaBtn" style="top: 15%; left: 46%;" data-vaga="3">
+                <span class="vagaBtn-label">Vaga 3</span>
+            </button>
+            <button class="vagaBtn" style="top: 15%; left: 58%;" data-vaga="4">
+                <span class="vagaBtn-label">Vaga 4</span>
+            </button>
+            <button class="vagaBtn" style="top: 15%; left: 70%;" data-vaga="5">
+                <span class="vagaBtn-label">Vaga 5</span>
+            </button>
+
+            <!-- BOTÕES – 6 embaixo -->
+            <button class="vagaBtn" style="top: 55%; left: 20%;" data-vaga="6">
+                <span class="vagaBtn-label">Vaga 6</span>
+            </button>
+            <button class="vagaBtn" style="top: 55%; left: 30%;" data-vaga="7">
+                <span class="vagaBtn-label">Vaga 7</span>
+            </button>
+            <button class="vagaBtn" style="top: 55%; left: 40%;" data-vaga="8">
+                <span class="vagaBtn-label">Vaga 8</span>
+            </button>
+            <button class="vagaBtn" style="top: 55%; left: 50%;" data-vaga="9">
+                <span class="vagaBtn-label">Vaga 9</span>
+            </button>
+            <button class="vagaBtn" style="top: 55%; left: 60%;" data-vaga="10">
+                <span class="vagaBtn-label">Vaga 10</span>
+            </button>
+            <button class="vagaBtn" style="top: 55%; left: 70%;" data-vaga="11">
+                <span class="vagaBtn-label">Vaga 11</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="tabelaBox">
+        <h3>Veículos disponíveis</h3>
+        <table id="tabelaVeiculos">
+            <thead>
+                <tr>
+                    <th>Placa</th>
+                    <th>Modelo</th>
+                    <th>Destino</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</main>
+
+<!-- MODAL DE SELEÇÃO -->
+<div id="selecaoModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>Selecionar veículo para a vaga</h3>
+        <p>Escolha um veículo da relação disponível:</p>
+        <select id="selectVeiculo"></select>
+        <div class="modal-actions">
+            <button id="cancelarSelecao" class="small-btn">Cancelar</button>
+            <button id="confirmarSelecao" class="small-btn primary">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DETALHES DA VAGA -->
+<div id="detalhesModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>Detalhes da vaga</h3>
+        <p>Informações do veículo inserido:</p>
+        <div class="detail-row">
+            <span class="detail-label">Modelo:</span>
+            <span class="detail-value" id="detModelo"></span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Placa:</span>
+            <span class="detail-value" id="detPlaca"></span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Destino:</span>
+            <span class="detail-value" id="detDestino"></span>
+        </div>
+        <div class="modal-actions">
+            <button id="removerVeiculoVaga" class="small-btn danger">Remover da vaga</button>
+            <button id="fecharDetalhes" class="small-btn primary">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPTS virão nas próximas partes -->
+
+<script>
+/* ========= SUPABASE CONFIG ========= */
+/* 
+   ATENÇÃO: Troque supabaseUrl e supabaseAnonKey pelos do seu projeto.
+   Se deixar "SEU_PROJETO", o sistema funciona só local (sem Supabase).
+*/
+let supabaseClient = null;
+try{
+    const { createClient } = supabase;
+    const supabaseUrl = "https://qesupjldpncrcyknmpkp.supabase.co";      // <-- TROCAR
+    const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlc3VwamxkcG5jcmN5a25tcGtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMDg5MzgsImV4cCI6MjA4MDg4NDkzOH0.Wr58BtR2-zXDcttakg0TI-U8jlDxCvjAqV85nD5d3-k";                   // <-- TROCAR
+     if(supabaseUrl && !supabaseUrl.includes("SEU_PROJETO")){
+        supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+        console.log("Supabase configurado.");
+    }else{
+        console.log("Supabase NÃO configurado (usando apenas local).");
+    }
+}catch(e){
+    console.warn("Supabase não disponível:", e);
+}
+
+/* ========= ESTADO GLOBAL ========= */
+let veiculos = [];
+let vagaAtual = null;
+let editMode = false;
+let vagaSelecionada = null;
+let nextVagaId = 12;
+let vagaEmDetalhe = null;
+
+const container = document.getElementById("cegonhaContainer");
+const modalSelecao = document.getElementById("selecaoModal");
+const selectVeiculo = document.getElementById("selectVeiculo");
+const modalDetalhes = document.getElementById("detalhesModal");
+
+/* ========= MENU HAMBURGUER ========= */
+const menuToggle = document.getElementById("menuToggle");
+const sideMenu = document.getElementById("sideMenu");
+const menuBackdrop = document.getElementById("menuBackdrop");
+
+function closeMenu(){
+    sideMenu.classList.remove("open");
+    menuBackdrop.style.display = "none";
+    menuToggle.classList.remove("active");
+}
+
+menuToggle.addEventListener("click", ()=>{
+    const open = !sideMenu.classList.contains("open");
+    if(open){
+        sideMenu.classList.add("open");
+        menuBackdrop.style.display = "block";
+        menuToggle.classList.add("active");
+    }else{
+        closeMenu();
+    }
+});
+
+menuBackdrop.addEventListener("click", closeMenu);
+
+/* ========= ROTATE HINT ========= */
+const rotateHint = document.getElementById("rotateHint");
+const closeRotateHintBtn = document.getElementById("closeRotateHint");
+let rotateHintDismissed = false;
+
+function checkOrientationHint(){
+    if(rotateHintDismissed) return;
+    if(window.innerWidth < window.innerHeight && window.innerWidth < 800){
+        rotateHint.style.display = "flex";
+    }else{
+        rotateHint.style.display = "none";
+    }
+}
+
+closeRotateHintBtn.addEventListener("click", ()=>{
+    rotateHintDismissed = true;
+    rotateHint.style.display = "none";
+});
+
+window.addEventListener("resize", checkOrientationHint);
+window.addEventListener("orientationchange", checkOrientationHint);
+document.addEventListener("DOMContentLoaded", checkOrientationHint);
+
+/* ========= TABELA VEÍCULOS ========= */
+function atualizarTabela(){
+    const tbody = document.querySelector("#tabelaVeiculos tbody");
+    tbody.innerHTML = "";
+    veiculos.forEach((v, index)=>{
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${v.PLACA || ""}</td>
+            <td>${v.MODELO || ""}</td>
+            <td>${v.DESTINO || ""}</td>
+        `;
+        row.dataset.index = index;
+        tbody.appendChild(row);
+    });
+}
+
+/* ========= XLSX IMPORT ========= */
+document.getElementById("fileInput").addEventListener("change", function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = async function(event){
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, {type: "array"});
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+        const parsed = json.map(row=>{
+            const norm = {};
+            Object.keys(row).forEach(k=>{
+                norm[k.trim().toUpperCase()] = row[k];
+            });
+            return {
+                PLACA: norm["PLACA"] || "",
+                MODELO: norm["MODELO"] || "",
+                DESTINO: norm["DESTINO"] || ""
+            };
+        });
+
+        veiculos = parsed;
+        atualizarTabela();
+
+        // Resetar UI de vagas
+        document.querySelectorAll(".vagaBtn").forEach(btn=>{
+            btn.dataset.placa = "";
+            btn.dataset.modelo = "";
+            btn.dataset.destino = "";
+            btn.classList.remove("preenchida");
+            const idVaga = btn.dataset.vaga || "";
+            const labelSpan = btn.querySelector(".vagaBtn-label");
+            if(labelSpan) labelSpan.textContent = "Vaga " + (idVaga || "");
+        });
+
+        // Sincroniza com Supabase (sobrescrevendo)
+        if(supabaseClient){
+            try{
+                // zera veiculos_cegonha
+                await supabaseClient.from("veiculos_cegonha").delete().neq("id", 0);
+                // zera vagas_cegonha
+                await supabaseClient.from("vagas_cegonha").delete().neq("id", 0);
+
+                const payload = parsed.map(v=>({
+                    placa: v.PLACA,
+                    modelo: v.MODELO,
+                    destino: v.DESTINO
+                }));
+                if(payload.length > 0){
+                    await supabaseClient.from("veiculos_cegonha").insert(payload);
+                }
+                console.log("Supabase atualizado a partir do XLSX.");
+            }catch(err){
+                console.error("Erro ao sincronizar com Supabase:", err);
+            }
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
+});
+
+/* ========= CARREGAR VEÍCULOS DO SUPABASE ========= */
+async function carregarVeiculosSupabase(){
+    if(!supabaseClient) return;
+    try{
+        const { data, error } = await supabaseClient
+            .from("veiculos_cegonha")
+            .select("*")
+            .order("id", { ascending: true });
+
+        if(error){
+            console.error(error);
+            alert("Erro ao carregar veículos do Supabase. Veja o console.");
+            return;
+        }
+        veiculos = (data || []).map(row=>({
+            PLACA: row.placa || "",
+            MODELO: row.modelo || "",
+            DESTINO: row.destino || "",
+            _id: row.id
+        }));
+        atualizarTabela();
+    }catch(err){
+        console.error(err);
+        alert("Erro inesperado ao carregar do Supabase.");
+    }
+}
+
+document.getElementById("btnCarregarSupabase").addEventListener("click", ()=>{
+    carregarVeiculosSupabase();
+});
+
+/* ========= CARREGAR VAGAS DO SUPABASE ========= */
+async function carregarVagasSupabase(){
+    if(!supabaseClient) return;
+    try{
+        const { data, error } = await supabaseClient
+            .from("vagas_cegonha")
+            .select("*");
+
+        if(error){
+            console.error(error);
+            return;
+        }
+        (data || []).forEach(row=>{
+            const id = row.id;
+            if(id == null) return;
+
+            let btn = document.querySelector(`.vagaBtn[data-vaga="${id}"]`);
+            if(!btn){
+                // cria nova vaga se não existir
+                btn = document.createElement("button");
+                btn.className = "vagaBtn";
+                btn.dataset.vaga = id;
+                btn.style.top = (typeof row.pos_top === "number" ? row.pos_top : 40) + "%";
+                btn.style.left = (typeof row.pos_left === "number" ? row.pos_left : 50) + "%";
+                btn.innerHTML = `<span class="vagaBtn-label">Vaga ${id}</span>`;
+                container.appendChild(btn);
+                inicializarEventosVaga(btn);
+                if(id >= nextVagaId) nextVagaId = id + 1;
+            }
+            const labelSpan = btn.querySelector(".vagaBtn-label");
+
+            if(typeof row.pos_top === "number") btn.style.top = row.pos_top + "%";
+            if(typeof row.pos_left === "number") btn.style.left = row.pos_left + "%";
+
+            btn.dataset.modelo = row.modelo || "";
+            btn.dataset.placa = row.placa || "";
+            btn.dataset.destino = row.destino || "";
+
+            if(row.modelo || row.placa || row.destino){
+                btn.classList.add("preenchida");
+                if(labelSpan){
+                    labelSpan.textContent = row.modelo || ("Vaga " + id);
+                }
+            }else{
+                btn.classList.remove("preenchida");
+                if(labelSpan){
+                    labelSpan.textContent = "Vaga " + id;
+                }
+            }
+        });
+    }catch(err){
+        console.error("Erro ao carregar vagas do Supabase:", err);
+    }
+}
+
+/* ========= ESTADO INICIAL DO SUPABASE ========= */
+async function carregarEstadoInicial(){
+    if(!supabaseClient) return;
+    await carregarVeiculosSupabase();
+    await carregarVagasSupabase();
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+    carregarEstadoInicial();
+});
+
+/* ========= REMOVER VEÍCULO DO SUPABASE ========= */
+async function removerVeiculoDoSupabase(v){
+    if(!supabaseClient) return;
+    try{
+        if(v._id){
+            await supabaseClient.from("veiculos_cegonha").delete().eq("id", v._id);
+        }else{
+            await supabaseClient
+                .from("veiculos_cegonha")
+                .delete()
+                .match({
+                    placa: v.PLACA || null,
+                    modelo: v.MODELO || null,
+                    destino: v.DESTINO || null
+                });
+        }
+    }catch(err){
+        console.error("Erro ao remover veículo do Supabase:", err);
+    }
+}
+
+/* ========= SALVAR ESTADO DA VAGA NO SUPABASE ========= */
+async function salvarVagaNoSupabase(btn){
+    if(!supabaseClient) return;
+    const id = parseInt(btn.dataset.vaga);
+    if(isNaN(id)) return;
+
+    const posTop = parseFloat(btn.style.top) || 0;
+    const posLeft = parseFloat(btn.style.left) || 0;
+
+    const registro = {
+        id,
+        pos_top: posTop,
+        pos_left: posLeft,
+        modelo: btn.dataset.modelo || null,
+        placa: btn.dataset.placa || null,
+        destino: btn.dataset.destino || null
+    };
+
+    try{
+        await supabaseClient.from("vagas_cegonha").upsert(registro);
+    }catch(err){
+        console.error("Erro ao salvar vaga no Supabase:", err);
+    }
+}
+
+/* ========= MODAL DE SELEÇÃO ========= */
+function abrirModalSelecao(btn){
+    if(veiculos.length === 0){
+        alert("Nenhum veículo disponível na lista.");
+        return;
+    }
+    vagaAtual = btn;
+    selectVeiculo.innerHTML = "";
+    veiculos.forEach((v, index)=>{
+        const opt = document.createElement("option");
+        const modelo = v.MODELO || "(Sem modelo)";
+        const placa = v.PLACA ? " - " + v.PLACA : "";
+        const destino = v.DESTINO ? " - " + v.DESTINO : "";
+        opt.textContent = modelo + placa + destino;
+        opt.value = index;
+        selectVeiculo.appendChild(opt);
+    });
+    modalSelecao.style.display = "flex";
+}
+
+document.getElementById("cancelarSelecao").addEventListener("click", ()=>{
+    modalSelecao.style.display = "none";
+    vagaAtual = null;
+});
+
+document.getElementById("confirmarSelecao").addEventListener("click", async ()=>{
+    const idx = parseInt(selectVeiculo.value);
+    if(isNaN(idx) || !veiculos[idx] || !vagaAtual) return;
+
+    const v = veiculos[idx];
+
+    // Texto exibido na vaga: SOMENTE MODELO
+    const labelSpan = vagaAtual.querySelector(".vagaBtn-label");
+    if(labelSpan){
+        labelSpan.textContent = v.MODELO || "(Sem modelo)";
+    }else{
+        vagaAtual.textContent = v.MODELO || "(Sem modelo)";
+    }
+
+    vagaAtual.dataset.placa = v.PLACA || "";
+    vagaAtual.dataset.modelo = v.MODELO || "";
+    vagaAtual.dataset.destino = v.DESTINO || "";
+    vagaAtual.classList.add("preenchida");
+
+    const escolhido = veiculos.splice(idx, 1)[0];
+    atualizarTabela();
+
+    await removerVeiculoDoSupabase(escolhido);
+    salvarVagaNoSupabase(vagaAtual);
+
+    modalSelecao.style.display = "none";
+    vagaAtual = null;
+});
+
+/* ========= MODAL DETALHES DA VAGA ========= */
+function mostrarDetalhesVaga(btn){
+    vagaEmDetalhe = btn;
+    const modelo = btn.dataset.modelo || "(Sem modelo)";
+    const placa = btn.dataset.placa || "(Sem placa)";
+    const destino = btn.dataset.destino || "(Sem destino)";
+    document.getElementById("detModelo").textContent = modelo;
+    document.getElementById("detPlaca").textContent = placa;
+    document.getElementById("detDestino").textContent = destino;
+    modalDetalhes.style.display = "flex";
+}
+
+document.getElementById("fecharDetalhes").addEventListener("click", ()=>{
+    modalDetalhes.style.display = "none";
+    vagaEmDetalhe = null;
+});
+
+document.getElementById("removerVeiculoVaga").addEventListener("click", async ()=>{
+    if(!vagaEmDetalhe) return;
+
+    const v = {
+        PLACA: vagaEmDetalhe.dataset.placa || "",
+        MODELO: vagaEmDetalhe.dataset.modelo || "",
+        DESTINO: vagaEmDetalhe.dataset.destino || ""
+    };
+
+    // volta veículo pra lista local
+    if(v.MODELO || v.PLACA || v.DESTINO){
+        veiculos.push(v);
+        atualizarTabela();
+
+        // reinsere no Supabase (veículos disponíveis)
+        if(supabaseClient){
+            try{
+                await supabaseClient.from("veiculos_cegonha").insert({
+                    placa: v.PLACA || null,
+                    modelo: v.MODELO || null,
+                    destino: v.DESTINO || null
+                });
+            }catch(err){
+                console.error("Erro ao reinserir veículo no Supabase:", err);
+            }
+        }
+    }
+
+    // limpa vaga visual
+    vagaEmDetalhe.dataset.placa = "";
+    vagaEmDetalhe.dataset.modelo = "";
+    vagaEmDetalhe.dataset.destino = "";
+    vagaEmDetalhe.classList.remove("preenchida");
+    const idVaga = vagaEmDetalhe.dataset.vaga || "";
+    const labelSpan = vagaEmDetalhe.querySelector(".vagaBtn-label");
+    if(labelSpan) labelSpan.textContent = "Vaga " + (idVaga || "");
+
+    // limpa vaga no Supabase
+    if(supabaseClient){
+        try{
+            const id = parseInt(vagaEmDetalhe.dataset.vaga);
+            if(!isNaN(id)){
+                await supabaseClient.from("vagas_cegonha").upsert({
+                    id,
+                    pos_top: parseFloat(vagaEmDetalhe.style.top) || 0,
+                    pos_left: parseFloat(vagaEmDetalhe.style.left) || 0,
+                    modelo: null,
+                    placa: null,
+                    destino: null
+                });
+            }
+        }catch(err){
+            console.error("Erro ao limpar vaga no Supabase:", err);
+        }
+    }
+
+    modalDetalhes.style.display = "none";
+    vagaEmDetalhe = null;
+});
+
+/* ========= VAGAS: CLICK / DRAG ========= */
+function inicializarEventosVaga(btn){
+    // Click
+    btn.addEventListener("click", (e)=>{
+        if(btn._dragging) return;
+
+        if(editMode){
+            vagaSelecionada = btn;
+            document.querySelectorAll(".vagaBtn").forEach(b=>b.classList.remove("selecionada"));
+            btn.classList.add("selecionada");
+        }else{
+            if(btn.dataset.modelo){   // já tem veículo
+                mostrarDetalhesVaga(btn);
+            }else{
+                abrirModalSelecao(btn);
+            }
+        }
+    });
+
+    // Drag
+    let startX, startY, initialLeft, initialTop;
+
+    btn.addEventListener("pointerdown", (e)=>{
+        if(!editMode) return;
+
+        btn._dragging = false;
+        btn.setPointerCapture(e.pointerId);
+
+        const rect = btn.getBoundingClientRect();
+        const contRect = container.getBoundingClientRect();
+
+        startX = e.clientX;
+        startY = e.clientY;
+        initialLeft = rect.left - contRect.left;
+        initialTop  = rect.top  - contRect.top;
+
+        const onMove = (ev)=>{
+            btn._dragging = true;
+
+            const dx = ev.clientX - startX;
+            const dy = ev.clientY - startY;
+
+            let newLeft = initialLeft + dx;
+            let newTop  = initialTop  + dy;
+
+            const maxX = contRect.width - btn.offsetWidth;
+            const maxY = contRect.height - btn.offsetHeight;
+
+            newLeft = Math.max(0, Math.min(newLeft, maxX));
+            newTop  = Math.max(0, Math.min(newTop, maxY));
+
+            const leftPct = (newLeft / contRect.width) * 100;
+            const topPct  = (newTop  / contRect.height) * 100;
+
+            btn.style.left = leftPct + "%";
+            btn.style.top  = topPct + "%";
+        };
+
+        const onUp = (ev)=>{
+            btn.releasePointerCapture(ev.pointerId);
+            btn.removeEventListener("pointermove", onMove);
+            btn.removeEventListener("pointerup", onUp);
+            setTimeout(()=>{ btn._dragging = false; }, 50);
+
+            // salvar nova posição no Supabase
+            salvarVagaNoSupabase(btn);
+        };
+
+        btn.addEventListener("pointermove", onMove);
+        btn.addEventListener("pointerup", onUp);
+    });
+}
+
+// inicializa vagas existentes
+document.querySelectorAll(".vagaBtn").forEach(inicializarEventosVaga);
+
+/* ========= CONTROLES DE EDIÇÃO ========= */
+const toggleEditBtn = document.getElementById("toggleEdit");
+const editStateLabel = document.getElementById("editStateLabel");
+
+toggleEditBtn.addEventListener("click", ()=>{
+    editMode = !editMode;
+    editStateLabel.textContent = editMode ? "ligado" : "desligado";
+
+    document.querySelectorAll(".vagaBtn").forEach(b=>{
+        if(editMode){
+            b.classList.add("edit-mode");
+        }else{
+            b.classList.remove("edit-mode","selecionada");
+        }
+    });
+
+    if(!editMode){
+        vagaSelecionada = null;
+    }
+});
+
+document.getElementById("addVaga").addEventListener("click", ()=>{
+    const btn = document.createElement("button");
+    btn.className = "vagaBtn";
+    btn.dataset.vaga = nextVagaId;
+    btn.style.top = "40%";
+    btn.style.left = "50%";
+    btn.innerHTML = `<span class="vagaBtn-label">Vaga ${nextVagaId}</span>`;
+    if(editMode) btn.classList.add("edit-mode");
+    container.appendChild(btn);
+    inicializarEventosVaga(btn);
+    salvarVagaNoSupabase(btn); // salva vaga nova
+    nextVagaId++;
+});
+
+document.getElementById("removeVaga").addEventListener("click", async ()=>{
+    if(!vagaSelecionada){
+        alert("Selecione uma vaga (em modo edição) para remover.");
+        return;
+    }
+    if(confirm("Remover esta vaga?")){
+        if(supabaseClient){
+            try{
+                const id = parseInt(vagaSelecionada.dataset.vaga);
+                if(!isNaN(id)){
+                    await supabaseClient.from("vagas_cegonha").delete().eq("id", id);
+                }
+            }catch(err){
+                console.error("Erro ao remover vaga no Supabase:", err);
+            }
+        }
+        container.removeChild(vagaSelecionada);
+        vagaSelecionada = null;
+    }
+});
+
+/* ========= EXPORTAR COMO PNG ========= */
+async function exportarPNG(){
+    try{
+        const elemento = document.querySelector("#cegonhaContainer");
+        const canvas = await html2canvas(elemento, {
+            useCORS:true,
+            allowTaint:true,
+            scale:2
+        });
+        const link = document.createElement("a");
+        link.download = "montagem_cegonha.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    }catch(err){
+        console.error("Erro ao exportar PNG:", err);
+        alert("Não foi possível gerar a imagem. Veja o console do navegador para detalhes.");
+    }
+}
+
+document.getElementById("exportBtnMenu").addEventListener("click", ()=>{
+    closeMenu();
+    exportarPNG();
+});
+
+/* ========= RESET TOTAL DO SISTEMA ========= */
+async function resetarSistema(){
+    if(!confirm("Tem certeza que deseja RESETAR tudo?\nIsso vai apagar posições, vagas adicionais e veículos!")) return;
+
+    if(!supabaseClient){
+        alert("Supabase não configurado.");
+        return;
+    }
+
+    try{
+        /* 1) Apagar tudo no Supabase */
+        await supabaseClient.from("vagas_cegonha").delete().neq("id", 0);
+        await supabaseClient.from("veiculos_cegonha").delete().neq("id", 0);
+
+        /* 2) Recriar as vagas padrão (1 a 11) */
+        const vagasPadrao = [
+            { id: 1,  pos_top:15, pos_left:22 },
+            { id: 2,  pos_top:15, pos_left:34 },
+            { id: 3,  pos_top:15, pos_left:46 },
+            { id: 4,  pos_top:15, pos_left:58 },
+            { id: 5,  pos_top:15, pos_left:70 },
+            { id: 6,  pos_top:55, pos_left:20 },
+            { id: 7,  pos_top:55, pos_left:30 },
+            { id: 8,  pos_top:55, pos_left:40 },
+            { id: 9,  pos_top:55, pos_left:50 },
+            { id: 10, pos_top:55, pos_left:60 },
+            { id: 11, pos_top:55, pos_left:70 }
+        ];
+
+        await supabaseClient.from("vagas_cegonha").insert(vagasPadrao);
+
+        /* 3) Resetar front-end */
+        veiculos = [];
+        atualizarTabela();
+
+        // Remover todas as vagas do DOM
+        document.querySelectorAll(".vagaBtn").forEach(b => b.remove());
+
+        // Recriar as 11 vagas padrão no front
+        vagasPadrao.forEach(v=>{
+            const btn = document.createElement("button");
+            btn.className = "vagaBtn";
+            btn.dataset.vaga = v.id;
+            btn.style.top = v.pos_top + "%";
+            btn.style.left = v.pos_left + "%";
+            btn.innerHTML = `<span class="vagaBtn-label">Vaga ${v.id}</span>`;
+            container.appendChild(btn);
+            inicializarEventosVaga(btn);
+        });
+
+        nextVagaId = 12;
+        
+        alert("Sistema resetado com sucesso!");
+
+    }catch(err){
+        console.error("Erro ao resetar sistema:", err);
+        alert("Erro ao resetar sistema. Veja o console.");
+    }
+}
+/* ================= LOGIN AUTH ================= */
+async function checkSession(){
+    const { data } = await supabaseClient.auth.getSession();
+    if(data.session){
+        document.getElementById("loginScreen").style.display = "none";
+        carregarEstadoInicial(); // carrega vagas e veículos
+    }else{
+        document.getElementById("loginScreen").style.display = "flex";
+    }
+}
+
+async function fazerLogin(){
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value.trim();
+    const errorBox = document.getElementById("loginError");
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ 
+        email, 
+        password 
+    });
+
+    if(error){
+        errorBox.textContent = "Erro: " + error.message;
+        return;
+    }
+
+    document.getElementById("loginScreen").style.display = "none";
+    carregarEstadoInicial();
+}
+
+document.getElementById("loginBtn").addEventListener("click", fazerLogin);
+
+checkSession();
+
+document.getElementById("logoutBtn").addEventListener("click", async ()=>{
+    await supabaseClient.auth.signOut();
+    location.reload();
+});
+/* === Mostrar / ocultar senha === */
+document.getElementById("togglePassword").addEventListener("click", () => {
+    const pass = document.getElementById("loginPassword");
+    pass.type = pass.type === "password" ? "text" : "password";
+});
+
+
+/* BOTÃO RESET */
+document.getElementById("resetSystem").addEventListener("click", resetarSistema);
+
+</script>
+</body>
+</html>
+
+
