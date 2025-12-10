@@ -511,6 +511,75 @@
     accent-color: #ff8800;
 }
 
+/* ===================== */
+/* OTIMIZAÇÃO PARA MOBILE */
+/* ===================== */
+@media (max-width: 480px) {
+
+    #loginScreen {
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .login-wrapper {
+        width: 100%;
+        max-width: 100%;
+        padding: 0 10px;
+    }
+
+    .login-card {
+        padding: 24px 20px;
+        border-radius: 14px;
+
+        /* aumenta proporção no mobile */
+        transform: scale(1.08);
+    }
+
+    .login-card h2 {
+        font-size: 24px;
+    }
+
+    .login-subtitle {
+        font-size: 14px;
+    }
+
+    .login-field label {
+        font-size: 15px;
+    }
+
+    .login-card input {
+        padding: 14px 16px;
+        font-size: 16px;
+    }
+
+    .toggle-pass {
+        font-size: 20px;
+        right: 12px;
+    }
+
+    .remember {
+        font-size: 15px;
+        margin-bottom: 20px;
+        gap: 10px;
+    }
+
+    .remember input {
+        width: 18px;
+        height: 18px;
+    }
+
+    .login-btn {
+        padding: 14px 0;
+        font-size: 18px;
+        border-radius: 12px;
+    }
+
+    #loginError {
+        font-size: 14px;
+    }
+}
 
 
 
@@ -752,8 +821,7 @@
             </button>
             <button id="resetSystem" class="menu-btn danger">
                 Resetar sistema 🔄
-</button>
-<button id="logoutBtn" class="menu-btn danger">Sair</button>
+
 
 
         </div>
@@ -769,6 +837,8 @@
         <p class="menu-hint">
             Dica: para melhor visualização, gire o celular para horizontal antes de montar a cegonha.
         </p>
+</button>
+<button id="logoutBtn" class="menu-btn danger">Sair</button>
     </div>
 </nav>
 
@@ -1576,6 +1646,45 @@ document.getElementById("togglePassword").addEventListener("click", () => {
 
 /* BOTÃO RESET */
 document.getElementById("resetSystem").addEventListener("click", resetarSistema);
+
+/* ============================
+   AUTO SCALE DO LOGIN
+=============================== */
+function autoScaleLogin() {
+    const screenWidth = window.innerWidth;
+    const card = document.querySelector(".login-card");
+
+    if (!card) return;
+
+    /*
+        📌 Lógica de escala:
+        - Telas MUITO pequenas (< 350px) escalam bastante
+        - Telas entre 350 e 480px escalam moderadamente
+        - Telas acima de 480px voltam ao tamanho padrão
+    */
+
+    let scale = 1;
+
+    if (screenWidth < 350) {
+        scale = 1.25;      // celulares muito pequenos
+    } else if (screenWidth < 400) {
+        scale = 1.15;
+    } else if (screenWidth < 460) {
+        scale = 1.10;
+    } else if (screenWidth < 520) {
+        scale = 1.05;
+    } else {
+        scale = 1;         // desktops e telas largas
+    }
+
+    card.style.transform = `scale(${scale})`;
+    card.style.transformOrigin = "top center";
+}
+
+// chamar sempre que a janela mudar
+window.addEventListener("resize", autoScaleLogin);
+window.addEventListener("orientationchange", autoScaleLogin);
+document.addEventListener("DOMContentLoaded", autoScaleLogin);
 
 </script>
 </body>
